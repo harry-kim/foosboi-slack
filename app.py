@@ -53,10 +53,16 @@ def add_players(web_client: slack.WebClient, players: List[dict], channel: str):
         users.append(client.users_info(user=user_id))
 
     message = foosboi.add_players(players=users)
-    response = web_client.chat_postMessage(channel=channel, text=f'{user}')
-    #message = foosboi.add_palyer(players=[user])
-    #response = web_client.chat_postMessage(channel=channel, text=message)
+    response = web_client.chat_postMessage(channel=channel, text=message)
 
+def games(web_client: slack.WebClient, players: List[dict], channel: str):
+    message = foosboi.get_games()
+    response = web_client.chat_postMessage(channel=channel, text=message)
+
+def cancel_game(web_client: slack.WebClient, game_num: int, channel: str):
+    message = foosboi.cancel_game(game_num)
+    response = web_client.chat_postMessage(channel=channel, text=message)
+ 
 # ================ Team Join Event =============== #
 # When the user first joins a team, the type of the event will be 'team_join'.
 # Here we'll link the onboarding_message callback to the 'team_join' event.
@@ -171,13 +177,18 @@ def handle_message(event_data):
         channel = message["channel"]
         if "start" in message.get("text"):
             start_game(client, message["user"], channel)
+        elif "games" in message.get("text"):
+            games(client, message["user"], channel)
         elif "join" in message.get("text"):
-            join_game(client, message["user"], channel)
+            add_players(client, [message["user"]], channel)
         elif "add player" in message.get("text"):
-            print(message)
             players = message.get("text").split()[2:]
-            print(players)
-            add_players(client, players, channel)
+            users_info = get_users_info(players)
+            add_players(client, users_info, channel)
+        elif "cancel game" in message.get("text"):
+            message_list = message.get("text").split()
+            game_num = int(message_list[2]) if len(message_list) > 2 else 0
+            cancel_game(client, game_num, channel)
 
 
 logger = logging.getLogger()

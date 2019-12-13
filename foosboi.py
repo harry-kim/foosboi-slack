@@ -29,7 +29,7 @@ class User(Base):
     balance = Column(Float)
 
     def __repr__(self):
-        return f"User {self.id} {self.name} {self.rank} {self.true_skill}"
+        return f'User {self.id} {self.name} {self.rank} {self.true_skill}'
 
     def __str__(self):
         return self.real_name
@@ -49,16 +49,25 @@ class Game(Base):
 
     def spaces_left(self):
         spaces = 0
-        if not team1_player1:
+        if not self.team1_player1:
             spaces += 1
-        if not team1_player2:
+        if not self.team1_player2:
             spaces += 1
-        if not team2_player1:
+        if not self.team2_player1:
             spaces += 1
-        if not team2_player1:
+        if not self.team2_player2:
             spaces += 1
         return spaces
 
+    def add_player(self, player:User):
+        if not self.team1_player1:
+            self.team1_player1 = player
+        elif not self.team1_player2:
+            self.team1_player2 = player
+        elif not self.team2_player1:
+            self.team2_player1 = player
+        elif not self.team2_player2:
+            self.team2_player2 = player
 
 
 class Foosboi():
@@ -194,11 +203,54 @@ class Foosboi():
                                     game.team1_player2,
                                     game.team2_player1,
                                     game.team2_player2))
+    def get_games(self) -> str:
+        message = ""
+        for i, game in enumerate(self.games):
+            message += (f"Game {i}:\n"
+                   "{} and {}\n"
+                   "vs.\n"
+                   "{} and {}\n".format(game.team1_player1,
+                                        game.team1_player2,
+                                        game.team2_player1,
+                                        game.team2_player2))
+
+        if len(self.games) == 0:
+            message = "No games started."
+        return message
+ 
 
     def add_players(self, players:List[str]) -> str:
+        users = []
         for user in players:
-            get_or_create(self.session, User, user_id=user["user"]["id"])
+            user = get_or_create(self.session, User, 
+                    user_id=user["user"]["id"],
+                    real_name=user["user"]["real_name"],
+                    name=user["user"]["name"])
+            users.append(user)
 
-        if self.games:
-            pass
-        return "" 
+        game = self.games[0]
+        message = ""
+        if game.spaces_left() >= len(users):
+            for user in users:
+                game.add_player(user)
+                message += "{} joined the next game!\n".format(user.name)
+                
+            self.session.commit()
+
+        if game.spaces_left() == 0:
+            message += """
+            *Next game is ready to go!*
+            <@{}> and <@{}> ()
+            vs.
+            <@{}> and <@{}> ()
+            """.format(game.team1_player1.user_id,
+                       game.team1_player2.user_id,
+                       game.team2_player1.user_id,
+                       game.team2_player2.user_id)
+
+        return message
+
+    def cancel_game(self, game_num:int):
+        self.games.pop(game_num)
+        return f"Game {game_num} cancelled!"
+
