@@ -19,8 +19,16 @@ slack_bot_token = SLACK_BOT_TOKEN
 # onboarding_tutorials_sent = {"channel": {"user_id": OnboardingTutorial}}
 onboarding_tutorials_sent = {}
 
+def command(f):
+    def wrapped_function(*args, **kwargs):
+        message = f(*args, **kwargs)  # func
+        web_client = args[0]
+        channel = args[1]
+        web_client.chat_postMessage(channel=channel, text=message)
+    return wrapped_function
 
-def start_game(web_client: slack.WebClient, user_id: str, channel: str):
+@command
+def start_game(web_client: slack.WebClient, channel: str, user_id: str):
     # Create a new onboarding tutorial.
     #onboarding_tutorial = OnboardingTutorial(channel)
 
@@ -30,7 +38,6 @@ def start_game(web_client: slack.WebClient, user_id: str, channel: str):
     message = foosboi.start_game(players_info=[user])
     #message = foosboi.get_message_payload()
 
-    response = web_client.chat_postMessage(channel=channel, text=message)
     # Post the onboarding message in Slack
     #response = web_client.chat_postMessage(**message)
 
@@ -45,24 +52,34 @@ def start_game(web_client: slack.WebClient, user_id: str, channel: str):
         onboarding_tutorials_sent[channel] = {}
     onboarding_tutorials_sent[channel][user_id] = foosboi
 
+    return message
 
-def add_players(web_client: slack.WebClient, players: List[dict], channel: str):
+@command
+def add_players(web_client: slack.WebClient, channel: str, players: List[dict]):
     users = []
     for user_id in players:
         user_id = user_id.strip('<@>')
         users.append(client.users_info(user=user_id))
 
-    message = foosboi.add_players(players=users)
-    response = web_client.chat_postMessage(channel=channel, text=message)
+    return foosboi.add_players(players=users)
 
-def games(web_client: slack.WebClient, players: List[dict], channel: str):
-    message = foosboi.get_games()
-    response = web_client.chat_postMessage(channel=channel, text=message)
+@command
+def games(web_client: slack.WebClient, channel: str, players: List[dict]):
+    return foosboi.get_games()
 
-def cancel_game(web_client: slack.WebClient, game_num: int, channel: str):
-    message = foosboi.cancel_game(game_num)
-    response = web_client.chat_postMessage(channel=channel, text=message)
- 
+@command
+def cancel_game(web_client: slack.WebClient, channel: str, game_num: int):
+    return foosboi.cancel_game(game_num)
+
+@command
+def stats(web_client: slack.WebClient, channel: str):
+    return foosboi.stats()
+
+@command
+def finish_game(web_client: slack.WebClient, channel: str, score:str):
+    team1_score, team2_score = map(int, score.split('-'))
+    return foosboi.finish_game(team1_score, team2_score)
+
 # ================ Team Join Event =============== #
 # When the user first joins a team, the type of the event will be 'team_join'.
 # Here we'll link the onboarding_message callback to the 'team_join' event.
@@ -176,19 +193,26 @@ def handle_message(event_data):
     if message.get("subtype") is None:
         channel = message["channel"]
         if "start" in message.get("text"):
-            start_game(client, message["user"], channel)
+            start_game(client, channel, message["user"])
         elif "games" in message.get("text"):
-            games(client, message["user"], channel)
+            games(client, channel, message["user"])
         elif "join" in message.get("text"):
-            add_players(client, [message["user"]], channel)
+            add_players(client, channel, [message["user"]])
         elif "add player" in message.get("text"):
             players = message.get("text").split()[2:]
-            users_info = get_users_info(players)
-            add_players(client, users_info, channel)
+            #users_info = get_users_info(players)
+            add_players(client, channel, players)
         elif "cancel game" in message.get("text"):
             message_list = message.get("text").split()
             game_num = int(message_list[2]) if len(message_list) > 2 else 0
-            cancel_game(client, game_num, channel)
+            cancel_game(client, channel, game_num)
+        elif "finish game" in message.get("text"):
+            score = message.get("text").split()[2:][0]
+            finish_game(client, channel, score)
+
+        elif "stats" in message.get("text"):
+            stats(client, channel)
+
 
 
 logger = logging.getLogger()

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -253,4 +255,33 @@ class Foosboi():
     def cancel_game(self, game_num:int):
         self.games.pop(game_num)
         return f"Game {game_num} cancelled!"
+
+    def finish_game(self, team1_score:int, team2_score:int):
+        game = self.games[0]
+        game_instance = get_or_create(self.session, Game, 
+                team1_player1=game.team1_player1,
+                team1_player2=game.team1_player2,
+                team2_player1=game.team2_player1,
+                team2_player2=game.team2_player2,
+                team1_score = team1_score,
+                team2_score = team2_score,
+                date = datetime.now()
+                )
+        self.session.commit()
+
+        message = ("Results saved\n" + 
+            "Rank changes:\n" +
+            "...todo...\n")
+
+        return message
+
+    def stats(self):
+        stats = {}
+        stat_msg = ""
+        for game in self.session.query(Game).order_by(Game.date):
+            stat_msg += "{}\n".format(game.__dict__)
+
+        print(stat_msg)
+        return stat_msg
+
 
