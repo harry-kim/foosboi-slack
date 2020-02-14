@@ -4,7 +4,7 @@ import slack
 import ssl as ssl_lib
 import certifi
 from tutorial import OnboardingTutorial
-from foosboi import Foosboi
+from foosboi import *
 from slackeventsapi import SlackEventAdapter
 from local_settings import *
 from sqlalchemy.orm import sessionmaker
@@ -61,7 +61,7 @@ def add_players(web_client: slack.WebClient, channel: str, players: List[dict]):
         user_id = user_id.strip('<@>')
         users.append(client.users_info(user=user_id))
 
-    return foosboi.add_players(players=users)
+    return foosboi.add_players(players_info=users)
 
 @command
 def games(web_client: slack.WebClient, channel: str, players: List[dict]):
@@ -230,5 +230,5 @@ response = client.chat_postMessage(
     text="Hello world!")
 assert response["ok"]
 assert response["message"]["text"] == "Hello world!"
-slack_events_adapter.start(port=3000)
+slack_events_adapter.start(port=3000, debug=True)
 
