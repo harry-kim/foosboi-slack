@@ -68,18 +68,40 @@ def games(web_client: slack.WebClient, channel: str, players: List[dict]):
     return foosboi.get_games()
 
 @command
+def cancel_all_games(web_client: slack.WebClient, channel: str):
+    return foosboi.cancel_all_games()
+
+@command
 def cancel_game(web_client: slack.WebClient, channel: str, game_num: int):
     return foosboi.cancel_game(game_num)
 
 @command
 def stats(web_client: slack.WebClient, channel: str):
-    return foosboi.stats()
+    return foosboi.print_stats()
 
 @command
 def finish_game(web_client: slack.WebClient, channel: str, score:str):
     team1_score, team2_score = map(int, score.split('-'))
     return foosboi.finish_game(team1_score, team2_score)
 
+@command
+def shuffle(web_client: slack.WebClient, channel: str, game_num:int):
+    return foosboi.shuffle(game_num)
+
+@command
+def history(web_client: slack.WebClient, channel: str, user:str, num_games:int):
+    return foosboi.history(user, num_games)
+
+@command
+def balance(web_client: slack.WebClient, channel: str, user_id:str):
+    user_id = user_id.strip('<@>')
+    user = client.users_info(user=user_id)
+    return foosboi.get_balance(user)
+
+@command
+def rebuy(web_client: slack.WebClient, channel: str, user_id:str):
+    user = client.users_info(user=user_id)
+    return foosboi.rebuy(user)
 # ================ Team Join Event =============== #
 # When the user first joins a team, the type of the event will be 'team_join'.
 # Here we'll link the onboarding_message callback to the 'team_join' event.
@@ -200,8 +222,9 @@ def handle_message(event_data):
             add_players(client, channel, [message["user"]])
         elif "add player" in message.get("text"):
             players = message.get("text").split()[2:]
-            #users_info = get_users_info(players)
             add_players(client, channel, players)
+        elif "cancel all" in message.get("text"):
+            cancel_all_games(client, channel)
         elif "cancel game" in message.get("text"):
             message_list = message.get("text").split()
             game_num = int(message_list[2]) if len(message_list) > 2 else 0
@@ -209,9 +232,30 @@ def handle_message(event_data):
         elif "finish game" in message.get("text"):
             score = message.get("text").split()[2:][0]
             finish_game(client, channel, score)
-
         elif "stats" in message.get("text"):
             stats(client, channel)
+        elif "shuffle" in message.get("text"):
+            message_list = message.get("text").split()
+            game_num = int(message_list[2]) if len(message_list) > 2 else 0
+            shuffle(client, channel, game_num)
+        elif "history" in message.get("text"):
+            message_list = message.get("text").split()
+            user = message_list[1]
+            game_num = message_list[2] if len(message_list) > 2 else 5
+            game_num = -1 if game_num == "all" else int(game_num)
+            history(client, channel, user, game_num)
+        elif "balance" in message.get("text"):
+            message_list = message.get("text").split()
+            try:
+                user = message_list[1]
+            except IndexError:
+                user = message['user']
+            balance(client, channel, user)
+        elif "rebuy" in message.get("text"):
+            message_list = message.get("text").split()
+            user = message['user']
+            rebuy(client, channel, user)
+
 
 
 
