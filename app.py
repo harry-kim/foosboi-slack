@@ -3,7 +3,6 @@ import logging
 import slack
 import ssl as ssl_lib
 import certifi
-from tutorial import OnboardingTutorial
 from foosboi import *
 from slack import RTMClient
 from slack.errors import SlackApiError
@@ -16,10 +15,6 @@ slack_signing_secret = SLACK_SIGNING_SECRET
 slack_events_adapter = SlackEventAdapter(slack_signing_secret, "/slack/events")
 
 slack_bot_token = SLACK_BOT_TOKEN
-
-# For simplicity we'll store our app data in-memory with the following data structure.
-# onboarding_tutorials_sent = {"channel": {"user_id": OnboardingTutorial}}
-onboarding_tutorials_sent = {}
 
 def command(f):
     def wrapped_function(*args, **kwargs):
@@ -37,28 +32,8 @@ def command(f):
 
 @command
 def start_game(web_client: slack.WebClient, channel: str, user_id: str):
-    # Create a new onboarding tutorial.
-    #onboarding_tutorial = OnboardingTutorial(channel)
-
-    # Get the onboarding message payload
-    #message = onboarding_tutorial.get_message_payload()
     user = web_client.users_info(user=user_id)
     message = foosboi.start_game(players_info=[user])
-    #message = foosboi.get_message_payload()
-
-    # Post the onboarding message in Slack
-    #response = web_client.chat_postMessage(**message)
-
-    # Capture the timestamp of the message we've just posted so
-    # we can use it to update the message after a user
-    # has completed an onboarding task.
-    #onboarding_tutorial.timestamp = response["ts"]
-    #foosboi.timestamp = response["ts"]
-
-    # Store the message sent in onboarding_tutorials_sent
-    if channel not in onboarding_tutorials_sent:
-        onboarding_tutorials_sent[channel] = {}
-    onboarding_tutorials_sent[channel][user_id] = foosboi
 
     return message
 
@@ -134,68 +109,6 @@ def onboarding_message(**payload):
     start_onboarding(web_client, user_id, channel)
 
 
-# ============= Reaction Added Events ============= #
-# When a users adds an emoji reaction to the onboarding message,
-# the type of the event will be 'reaction_added'.
-# Here we'll link the update_emoji callback to the 'reaction_added' event.
-@slack.RTMClient.run_on(event="reaction_added")
-def update_emoji(**payload):
-    """Update the onboarding welcome message after receiving a "reaction_added"
-    event from Slack. Update timestamp for welcome message as well.
-    """
-    data = payload["data"]
-    web_client = payload["web_client"]
-    channel_id = data["item"]["channel"]
-    user_id = data["user"]
-
-    if channel_id not in onboarding_tutorials_sent:
-        return
-
-    # Get the original tutorial sent.
-    onboarding_tutorial = onboarding_tutorials_sent[channel_id][user_id]
-
-    # Mark the reaction task as completed.
-    onboarding_tutorial.reaction_task_completed = True
-
-    # Get the new message payload
-    message = onboarding_tutorial.get_message_payload()
-
-    # Post the updated message in Slack
-    updated_message = web_client.chat_update(**message)
-
-    # Update the timestamp saved on the onboarding tutorial object
-    onboarding_tutorial.timestamp = updated_message["ts"]
-
-
-# =============== Pin Added Events ================ #
-# When a users pins a message the type of the event will be 'pin_added'.
-# Here we'll link the update_pin callback to the 'reaction_added' event.
-@slack.RTMClient.run_on(event="pin_added")
-def update_pin(**payload):
-    """Update the onboarding welcome message after receiving a "pin_added"
-    event from Slack. Update timestamp for welcome message as well.
-    """
-    data = payload["data"]
-    web_client = payload["web_client"]
-    channel_id = data["channel_id"]
-    user_id = data["user"]
-
-    # Get the original tutorial sent.
-    onboarding_tutorial = onboarding_tutorials_sent[channel_id][user_id]
-
-    # Mark the pin task as completed.
-    onboarding_tutorial.pin_task_completed = True
-
-    # Get the new message payload
-    message = onboarding_tutorial.get_message_payload()
-
-    # Post the updated message in Slack
-    updated_message = web_client.chat_update(**message)
-
-    # Update the timestamp saved on the onboarding tutorial object
-    onboarding_tutorial.timestamp = updated_message["ts"]
-
-
 # ============== Message Events ============= #
 # When a user sends a DM, the event type will be 'message'.
 # Here we'll link the message callback to the 'message' event.
@@ -256,17 +169,6 @@ def message(**payload):
     except Exception as e:
         print(e)
         
-#    try:
-#        response = web_client.chat_postMessage(
-#            channel=channel_id,
-#            text=response,
-#            thread_ts=thread_ts
-#        )
-#    except SlackApiError as e:
-#        # You will get a SlackApiError if "ok" is False
-#        assert e.response["ok"] is False
-#        assert e.response["error"]  # str like 'invalid_auth', 'channel_not_found'
-#        print(f"Got an error: {e.response['error']}")
 
 @slack_events_adapter.on("message")
 def handle_message(event_data):
