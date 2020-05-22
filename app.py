@@ -40,7 +40,6 @@ def start_game(web_client: slack.WebClient, channel: str, user_id: str):
 @command
 def add_players(web_client: slack.WebClient, channel: str, players: List[dict]):
     users = []
-    import pdb; pdb.set_trace()
     for user_id in players:
         user_id = user_id.strip('<@>')
         users.append(web_client.users_info(user=user_id))
